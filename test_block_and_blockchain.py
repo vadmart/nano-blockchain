@@ -1,5 +1,5 @@
-import unittest, main
-from unittest.mock import patch
+import main
+import unittest
 from datetime import datetime
 
 from main import BlockInfo
@@ -16,11 +16,13 @@ class Block_HashTest(main.Block):
             return "00000abcdefasfsdfsdaffaghijklmnop"
         return "abcdefasfsdfsdaffaghijklmnop"
 
+
 class Block_HashTestFactory(main.BlockFactory):
 
     @staticmethod
-    def generate_block(data: BlockInfo=None, timestamp: float = None, previous_hash: str = None):
+    def generate_block(data: BlockInfo = None, timestamp: float = None, previous_hash: str = None):
         return Block_HashTest(data=data, timestamp=timestamp, previous_hash=previous_hash)
+
 
 class TestBlock(unittest.TestCase):
     def test_block_without_data(self):
@@ -47,10 +49,12 @@ class TestBlock(unittest.TestCase):
         self.assertTrue(block.nonce == 1000)
         self.assertTrue(block.hash[:5] == "00000")
 
+
 class TestBlockFactory(unittest.TestCase):
     def test_block_factory(self):
         block = main.BlockFactory.generate_block()
         self.assertIsInstance(block, main.Block)
+
 
 class TestBlockchain(unittest.TestCase):
     def setUp(self):
