@@ -90,8 +90,7 @@ async def get_blockchain():
 async def mine_block(difficulty: int = 5):
     if difficulty < 2:
         raise HTTPException(status_code=400, detail="Difficulty cannot be less than 2")
-    # await to_process.run_sync(blockchain.mine_block, None, None, difficulty)
-    blockchain.mine_block(difficulty=difficulty)
+    await to_process.run_sync(blockchain.mine_block, None, None, difficulty)
     return Response(status_code=204)
 
 
@@ -106,8 +105,7 @@ async def get_blockchain_block(item_id: int, response: Response):
 
 @app.post("/blockchain/make-transaction")
 async def make_transaction(data: BlockInfo, response: Response, difficulty: int = 5):
-    # await to_process.run_sync(blockchain.mine_block, data, None, difficulty)
-    blockchain.mine_block(data=data, difficulty=difficulty)
+    await to_process.run_sync(blockchain.mine_block, data, None, difficulty)
     response.status_code = 201
     return data
 
