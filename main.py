@@ -1,16 +1,25 @@
 import hashlib
-from dataclasses import dataclass
+import time
 from datetime import datetime
 from typing import Type
 
-from fastapi import FastAPI, Response
+from anyio import to_process
+from fastapi import FastAPI, Response, HTTPException
+from pydantic import BaseModel, Field
 
 
-@dataclass
-class BlockInfo:
+def find_nonce(obj, start: int, difficulty: int):
+    for i in range(start, start + 1000):
+        obj.nonce = i
+        if obj.hash[:difficulty] == "0" * difficulty:
+            print(obj.hash)
+            return obj.nonce
+
+
+class BlockInfo(BaseModel):
     sender: str = ""
     receiver: str = ""
-    amount: int = 0
+    amount: int | float = Field(0, gt=0)
 
 
 class Block:
@@ -28,6 +37,9 @@ class Block:
         hash_value.update(str(self.nonce).encode())
         hash_value.update(str(self.previous_hash).encode())
         return hash_value.hexdigest()
+
+    def __copy__(self):
+        return Block(self.data, self.timestamp, self.previous_hash)
 
     def proof_of_work(self, difficulty=5):
         if difficulty < 2:
@@ -48,10 +60,10 @@ class Blockchain:
         self.block_factory = block_factory
         self.mine_block()
 
-    def mine_block(self, data: BlockInfo = None, timestamp: float = None):
+    def mine_block(self, data: BlockInfo = None, timestamp: float = None, difficulty: int = 5):
         last_block_hash = self.__chain[-1].hash if len(self.__chain) > 0 else None
         block = self.block_factory.generate_block(data=data, timestamp=timestamp, previous_hash=last_block_hash)
-        block.proof_of_work()
+        block.proof_of_work(difficulty)
         self.__chain.append(block)
 
     @property
@@ -63,19 +75,28 @@ blockchain = Blockchain(BlockFactory)
 app = FastAPI()
 
 
+def hard_task():
+    time.sleep(1)
+    print(1)
+    return 1
+
+
 @app.get("/blockchain")
-def get_blockchain():
+async def get_blockchain():
     return {"blockchain": blockchain.chain, "length": len(blockchain.chain)}
 
 
-@app.get("/blockchain/mine")
-def mine_block():
-    blockchain.mine_block()
+@app.post("/blockchain/mine")
+async def mine_block(difficulty: int = 5):
+    if difficulty < 2:
+        raise HTTPException(status_code=400, detail="Difficulty cannot be less than 2")
+    # await to_process.run_sync(blockchain.mine_block, None, None, difficulty)
+    blockchain.mine_block(difficulty=difficulty)
     return Response(status_code=204)
 
 
 @app.get("/blockchain/block/{item_id}")
-def get_blockchain_block(item_id: int, response: Response):
+async def get_blockchain_block(item_id: int, response: Response):
     try:
         return {"block": blockchain.chain[item_id - 1]}
     except IndexError:
@@ -84,7 +105,9 @@ def get_blockchain_block(item_id: int, response: Response):
 
 
 @app.post("/blockchain/make-transaction")
-def make_transaction(data: BlockInfo, response: Response):
-    blockchain.mine_block(data=data)
+async def make_transaction(data: BlockInfo, response: Response, difficulty: int = 5):
+    # await to_process.run_sync(blockchain.mine_block, data, None, difficulty)
+    blockchain.mine_block(data=data, difficulty=difficulty)
     response.status_code = 201
     return data
+
